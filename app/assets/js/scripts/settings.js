@@ -1581,3 +1581,69 @@ async function prepareSettings(first = false) {
 
 // Prepare the settings UI on startup.
 //prepareSettings(true)
+
+// Easter egg: 5 clicks on #settingsAboutLogo changes background to hotlava.mp4
+(function() {
+    let logoClickCount = 0;
+    let lavaActive = false;
+    const logo = document.getElementById('settingsAboutLogo');
+    let lavaVideo = null;
+
+    function setGlobalVideoBackground() {
+        // Remove any previous video
+        const existing = document.getElementById('lavaBgVideo');
+        if (existing) existing.remove();
+        // Remove any background image
+        document.body.style.backgroundImage = '';
+        // Create and style the video element
+        lavaVideo = document.createElement('video');
+        lavaVideo.id = 'lavaBgVideo';
+        // Use plain video URL (no cache-busting)
+        lavaVideo.src = 'https://nebula.braincrush.net/hotlava.mp4';
+        lavaVideo.autoplay = true;
+        lavaVideo.loop = true;
+        lavaVideo.muted = false;
+        lavaVideo.playsInline = true;
+        lavaVideo.controls = false;
+        lavaVideo.style.position = 'fixed';
+        lavaVideo.style.top = '0';
+        lavaVideo.style.left = '0';
+        lavaVideo.style.width = '100vw';
+        lavaVideo.style.height = '100vh';
+        lavaVideo.style.zIndex = '-1';
+        lavaVideo.style.objectFit = 'cover';
+        lavaVideo.style.pointerEvents = 'none';
+        document.body.appendChild(lavaVideo);
+        // Change window title
+        if (window.require) {
+            try {
+                const { remote } = window.require('electron');
+                if (remote && remote.getCurrentWindow) {
+                    remote.getCurrentWindow().setTitle('STEVES LAVA CHICKEN LAUNCHER');
+                }
+            } catch (e) {
+                document.title = 'STEVES LAVA CHICKEN LAUNCHER';
+            }
+        } else {
+            document.title = 'STEVES LAVA CHICKEN LAUNCHER';
+        }
+    }
+
+    if (logo) {
+        logo.addEventListener('click', () => {
+            if (lavaActive) return;
+            logoClickCount++;
+            if (logoClickCount >= 5) {
+                lavaActive = true;
+                setGlobalVideoBackground();
+                logoClickCount = 0;
+            }
+        });
+        // Optional: Reset click count if user leaves the settings tab
+        document.addEventListener('click', (e) => {
+            if (!lavaActive && e.target !== logo) {
+                logoClickCount = 0;
+            }
+        });
+    }
+})();

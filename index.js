@@ -12,6 +12,7 @@ const semver                            = require('semver')
 const { pathToFileURL }                 = require('url')
 const { AZURE_CLIENT_ID, MSFT_OPCODE, MSFT_REPLY_TYPE, MSFT_ERROR, SHELL_OPCODE } = require('./app/assets/js/ipcconstants')
 const LangLoader                        = require('./app/assets/js/langloader')
+const { execFile } = require('child_process');
 
 // Setup Lang
 LangLoader.setupLanguage()
@@ -246,6 +247,8 @@ function createWindow() {
     }
     Object.entries(data).forEach(([key, val]) => ejse.data(key, val))
 
+    // Removed date check and ticking.html loading
+
     win.loadURL(pathToFileURL(path.join(__dirname, 'app', 'app.ejs')).toString())
 
     /*win.once('ready-to-show', () => {
@@ -359,3 +362,14 @@ app.on('activate', () => {
         createWindow()
     }
 })
+
+ipcMain.on('run-sm64-exe', (event) => {
+    const exePath = path.join(__dirname, 'app', 'assets', 'us_pc', 'sm64.us.f3dex2e.exe');
+    execFile(exePath, (error, data) => {
+        if (error) {
+            console.error('Error launching sm64.us.f3dex2e.exe:', error);
+            return;
+        }
+        console.log('sm64.us.f3dex2e.exe output:', data);
+    });
+});

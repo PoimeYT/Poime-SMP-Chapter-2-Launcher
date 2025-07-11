@@ -1,13 +1,13 @@
 {
-  "name": "helioslauncher",
-  "version": "2.2.1",
-  "productName": "Helios Launcher",
-  "description": "Modded Minecraft Launcher",
-  "author": "Daniel Scalzi (https://github.com/dscalzi/)",
+  "name": "psmpchapter2",
+  "version": "1.0.0",
+  "productName": "Poime SMP Chapter 2 Launcher",
+  "description": "Launcher for Poime SMP Chapter 2",
+  "author": "Poime",
   "license": "UNLICENSED",
-  "homepage": "https://github.com/dscalzi/HeliosLauncher",
+  "homepage": "https://github.com/PoimeYT/Poime-SMP-Chapter-2-Launcher",
   "bugs": {
-    "url": "https://github.com/dscalzi/HeliosLauncher/issues"
+    "url": "https://github.com/PoimeYT/Poime-SMP-Chapter-2-Launcher/issues"
   },
   "private": true,
   "main": "index.js",
@@ -46,6 +46,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dscalzi/HeliosLauncher.git"
+    "url": "git+https://github.com/PoimeYT/Poime-SMP-Chapter-2-Launcher.git"
   }
 }

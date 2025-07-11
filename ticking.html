@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timer</title>
+  <style>
+    body {
+      margin: 0;
+      background-color: black;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+    #timer {
+      font-size: 10vw;
+    }
+  </style>
+</head>
+<body>
+  <div id="timer">Loading...</div>
+
+  <audio id="minuteSound" src="minute.ogg"></audio>
+  <audio id="tick1" src="tick1.mp3"></audio>
+  <audio id="tick2" src="tick2.mp3"></audio>
+
+  <script>
+    const timerElement = document.getElementById("timer");
+    const minuteSound = document.getElementById("minuteSound");
+    const tick1 = document.getElementById("tick1");
+    const tick2 = document.getElementById("tick2");
+
+    let tickToggle = false;
+    let lastMinute = null;
+    let currentTime = null; // will store current time from server as Date
+    let intervalId;
+
+    // Fetch current time from AEST timezone using WorldTimeAPI
+    async function fetchNetworkTime() {
+      try {
+        const response = await fetch("https://worldtimeapi.org/api/timezone/Australia/Sydney");
+        if (!response.ok) throw new Error("Failed to fetch time");
+        const data = await response.json();
+        // data.datetime example: "2025-07-08T06:50:15.123456+10:00"
+        currentTime = new Date(data.datetime);
+        startTimer();
+      } catch (error) {
+        console.error("Error fetching network time:", error);
+        timerElement.textContent = "Error loading time";
+      }
+    }
+
+    function getSecondsUntil730AM(date) {
+      // Calculate seconds from given date to next 7:30 AM AEST
+      const target = new Date(date);
+      target.setHours(7, 30, 0, 0);
+
+      if (date >= target) {
+        target.setDate(target.getDate() + 1);
+      }
+
+      return Math.floor((target - date) / 1000);
+    }
+
+    function updateTimer() {
+      if (!currentTime) return;
+
+      // Increase currentTime by 1 second since last update
+      currentTime = new Date(currentTime.getTime() + 1000);
+
+      const remaining = getSecondsUntil730AM(currentTime);
+
+      if (remaining <= 0) {
+        timerElement.textContent = "00:00:00";
+        clearInterval(intervalId);
+        window.location.href = "app/app.ejs"; // Redirect
+        return;
+      }
+
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+      const seconds = remaining % 60;
+
+      timerElement.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+      // Play tick sounds alternating every second
+      const tick = tickToggle ? tick1 : tick2;
+      tick.currentTime = 0;
+      tick.play().catch(() => {});
+      tickToggle = !tickToggle;
+
+      // Play minute sound if the minute changes
+      if (minutes !== lastMinute) {
+        lastMinute = minutes;
+        minuteSound.currentTime = 0;
+        minuteSound.play().catch(() => {});
+      }
+    }
+
+    function startTimer() {
+      updateTimer(); // first update immediately
+      intervalId = setInterval(updateTimer, 1000);
+    }
+
+    fetchNetworkTime();
+  </script>
+</body>
+</html>

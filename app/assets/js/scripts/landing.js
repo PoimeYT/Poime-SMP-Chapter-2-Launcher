@@ -127,19 +127,331 @@ document.getElementById('launch_button').addEventListener('click', async e => {
     }
 })
 
-// Bind settings button
-document.getElementById('settingsMediaButton').onclick = async e => {
-    await prepareSettings()
-    switchView(getCurrentView(), VIEWS.settings)
-}
+document.addEventListener('DOMContentLoaded', () => {
+    const settingsMediaButton = document.getElementById('settingsMediaButton');
+    if (settingsMediaButton) {
+        settingsMediaButton.onclick = async e => {
+            await prepareSettings();
+            switchView(getCurrentView(), VIEWS.settings);
+        };
+    }
 
-// Bind avatar overlay button.
-document.getElementById('avatarOverlay').onclick = async e => {
-    await prepareSettings()
-    switchView(getCurrentView(), VIEWS.settings, 500, 500, () => {
-        settingsNavItemListener(document.getElementById('settingsNavAccount'), false)
-    })
-}
+    const avatarOverlay = document.getElementById('avatarOverlay');
+    if (avatarOverlay) {
+        avatarOverlay.onclick = async e => {
+            await prepareSettings();
+            switchView(getCurrentView(), VIEWS.settings, 500, 500, () => {
+                settingsNavItemListener(document.getElementById('settingsNavAccount'), false);
+            });
+        };
+    }
+
+    const serverSelectionButton = document.getElementById('server_selection_button');
+    if (serverSelectionButton) {
+        serverSelectionButton.onclick = async e => {
+            e.target.blur();
+            await toggleServerSelection(true);
+        };
+    }
+
+    // Make the seal image visually clickable
+    const imageSeal = document.getElementById('image_seal');
+    if (imageSeal) {
+        imageSeal.style.cursor = 'pointer';
+        imageSeal.tabIndex = 0; // Make it focusable
+        imageSeal.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                imageSeal.click();
+            }
+        });
+        imageSeal.addEventListener('focus', () => {
+            imageSeal.style.outline = '2px solid #43c628';
+        });
+        imageSeal.addEventListener('blur', () => {
+            imageSeal.style.outline = '';
+        });
+        // Use external MP3 for the seal sound
+        const sealAudio = new Audio('https://nebula.braincrush.net/minute.mp3');
+        sealAudio.volume = 1.0; // Set to maximum volume
+        const sealImages = [
+            'assets/uncanny.jpg',
+            'assets/moon.png',
+            'assets/kermit-falling.gif',
+            'assets/mario.gif',
+            'assets/i-show.gif',
+            'assets/huh.webp',
+            'assets/black.gif',
+            'assets/freak.gif',
+            'assets/cat.gif'
+        ];
+        let sealImageIndex = 0;
+        imageSeal.addEventListener('click', () => {
+            // Play sound
+            sealAudio.currentTime = 0;
+            sealAudio.play();
+
+            // Cycle through images
+            sealImageIndex = (sealImageIndex + 1) % sealImages.length;
+            imageSeal.src = sealImages[sealImageIndex];
+
+            // Create overlay for the current image
+            let overlayImg = sealImages[sealImageIndex];
+            let uncannyOverlay = document.createElement('div');
+            uncannyOverlay.style.position = 'fixed';
+            uncannyOverlay.style.top = '0';
+            uncannyOverlay.style.left = '0';
+            uncannyOverlay.style.width = '100vw';
+            uncannyOverlay.style.height = '100vh';
+            uncannyOverlay.style.zIndex = '9999';
+            uncannyOverlay.style.pointerEvents = 'none';
+            uncannyOverlay.style.background = `url('${overlayImg}') center center no-repeat`;
+            uncannyOverlay.style.backgroundSize = 'cover';
+            uncannyOverlay.style.opacity = '1';
+            uncannyOverlay.style.transition = 'opacity 1000ms linear';
+            document.body.appendChild(uncannyOverlay);
+
+            // Force reflow to ensure transition works
+            void uncannyOverlay.offsetWidth;
+            // Fade out after a short delay
+            setTimeout(() => {
+                uncannyOverlay.style.opacity = '0';
+                // Remove after fade out
+                uncannyOverlay.addEventListener('transitionend', () => {
+                    if (uncannyOverlay && uncannyOverlay.parentNode) {
+                        uncannyOverlay.parentNode.removeChild(uncannyOverlay);
+                    }
+                }, { once: true });
+            }, 600); // Show for 400ms before fading out
+        });
+    }
+
+    // Easter egg: 5 clicks on #user_text changes background to sq.mp4 and title to STEVE SAYS SQUAWK LAUNCHER
+    let nameClickCount = 0;
+    let squawkActive = false;
+    const userText = document.getElementById('user_text');
+    let squawkVideo = null;
+    let iframeMode = false; // Move toggle variable to outer scope
+    let squidIframe = null; // Store iframe reference
+    let overlay = null; // Store overlay reference
+
+    function setGlobalSquawkVideoBackground() {
+        // Remove any previous video
+        const existing = document.getElementById('lavaBgVideo');
+        if (existing) existing.remove();
+        // Remove any background image
+        document.body.style.backgroundImage = '';
+        // Create and style the iframe element
+        squidIframe = document.createElement('iframe');
+        squidIframe.id = 'lavaBgVideo';
+        squidIframe.src = 'https://archive.org/embed/squid-game-full-movie?autoplay=1';
+        squidIframe.style.position = 'fixed';
+        squidIframe.style.top = '0';
+        squidIframe.style.left = '0';
+        squidIframe.style.width = '100vw';
+        squidIframe.style.height = '100vh';
+        squidIframe.style.zIndex = '-1';
+        squidIframe.style.border = 'none';
+        squidIframe.style.pointerEvents = 'none';
+        squidIframe.allowFullscreen = true;
+        squidIframe.webkitallowfullscreen = true;
+        squidIframe.mozallowfullscreen = true;
+        squidIframe.allow = 'autoplay; fullscreen';
+        document.body.appendChild(squidIframe);
+        
+        // Add semi-transparent overlay to make launcher content readable
+        overlay = document.createElement('div');
+        overlay.style.position = 'fixed';
+        overlay.style.top = '0';
+        overlay.style.left = '0';
+        overlay.style.width = '100vw';
+        overlay.style.height = '100vh';
+        overlay.style.zIndex = '0';
+        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+        overlay.style.pointerEvents = 'none';
+        document.body.appendChild(overlay);
+
+        // Toggle system for iframe/launcher interaction
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'v' || e.key === 'V') {
+                iframeMode = !iframeMode;
+                
+                // Create or update mode indicator
+                let indicator = document.getElementById('modeIndicator');
+                if (!indicator) {
+                    indicator = document.createElement('div');
+                    indicator.id = 'modeIndicator';
+                    indicator.style.position = 'fixed';
+                    indicator.style.top = '10px';
+                    indicator.style.right = '10px';
+                    indicator.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                    indicator.style.color = 'white';
+                    indicator.style.padding = '5px 10px';
+                    indicator.style.borderRadius = '5px';
+                    indicator.style.zIndex = '10000';
+                    indicator.style.fontFamily = 'Arial, sans-serif';
+                    indicator.style.fontSize = '12px';
+                    document.body.appendChild(indicator);
+                }
+                
+                indicator.textContent = iframeMode ? 'IFRAME MODE' : 'LAUNCHER MODE';
+                indicator.style.display = 'block';
+                
+                // Hide indicator after 2 seconds
+                setTimeout(() => {
+                    indicator.style.display = 'none';
+                }, 2000);
+                
+                if (iframeMode) {
+                    // Enable iframe interaction, disable launcher
+                    squidIframe.style.zIndex = '9999';
+                    squidIframe.style.pointerEvents = 'auto';
+                    overlay.style.pointerEvents = 'auto';
+                    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.1)';
+                } else {
+                    // Enable launcher interaction, disable iframe
+                    squidIframe.style.zIndex = '-1';
+                    squidIframe.style.pointerEvents = 'none';
+                    overlay.style.pointerEvents = 'none';
+                    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.3)';
+                }
+            }
+        });
+        // Change window title
+        if (window.require) {
+            try {
+                const { remote } = window.require('electron');
+                if (remote && remote.getCurrentWindow) {
+                    remote.getCurrentWindow().setTitle('STEVE SAYS SQUAWK LAUNCHER');
+                }
+            } catch (e) {
+                document.title = 'STEVE SAYS SQUAWK LAUNCHER';
+            }
+        } else {
+            document.title = 'STEVE SAYS SQUAWK LAUNCHER';
+        }
+    }
+
+    if (userText) {
+        userText.addEventListener('click', () => {
+            if (squawkActive) return;
+            nameClickCount++;
+            if (nameClickCount >= 5) {
+                squawkActive = true;
+                setGlobalSquawkVideoBackground();
+            }
+        });
+    }
+
+    // Easter egg: 5 clicks on #instagramURL changes background to ass.mp4
+    let instaClickCount = 0;
+    let instaActive = false;
+    const instaBtn = document.getElementById('instagramURL');
+    let instaVideo = null;
+
+    function setGlobalInstaVideoBackground() {
+        // Remove any previous video
+        const existing = document.getElementById('lavaBgVideo');
+        if (existing) existing.remove();
+        // Remove any background image
+        document.body.style.backgroundImage = '';
+        // Create and style the video element
+        instaVideo = document.createElement('video');
+        instaVideo.id = 'lavaBgVideo';
+        instaVideo.src = 'https://nebula.braincrush.net/ass.mp4';
+        instaVideo.autoplay = true;
+        instaVideo.loop = true;
+        instaVideo.muted = false;
+        instaVideo.playsInline = true;
+        instaVideo.controls = false;
+        instaVideo.style.position = 'fixed';
+        instaVideo.style.top = '0';
+        instaVideo.style.left = '0';
+        instaVideo.style.width = '100vw';
+        instaVideo.style.height = '100vh';
+        instaVideo.style.zIndex = '-1';
+        instaVideo.style.objectFit = 'cover';
+        instaVideo.style.pointerEvents = 'none';
+        document.body.appendChild(instaVideo);
+    }
+
+    if (instaBtn) {
+        instaBtn.addEventListener('click', (e) => {
+            if (instaActive) return;
+            instaClickCount++;
+            if (instaClickCount >= 5) {
+                instaActive = true;
+                setGlobalInstaVideoBackground();
+            }
+        });
+    }
+
+    // Easter egg: 5 clicks on #xURL changes background to cheeks.mp4 and launches sm64.us.f3dex2e.exe
+    let xClickCount = 0;
+    let xActive = false;
+    const xBtn = document.getElementById('xURL');
+    let xVideo = null;
+
+    function setGlobalXVideoBackground() {
+        // Remove any previous video
+        const existing = document.getElementById('lavaBgVideo');
+        if (existing) existing.remove();
+        // Remove any background image
+        document.body.style.backgroundImage = '';
+        // Create and style the video element
+        xVideo = document.createElement('video');
+        xVideo.id = 'lavaBgVideo';
+        xVideo.src = 'https://nebula.braincrush.net/cheeks.mp4';
+        xVideo.autoplay = true;
+        xVideo.loop = true;
+        xVideo.muted = false;
+        xVideo.playsInline = true;
+        xVideo.controls = false;
+        xVideo.style.position = 'fixed';
+        xVideo.style.top = '0';
+        xVideo.style.left = '0';
+        xVideo.style.width = '100vw';
+        xVideo.style.height = '100vh';
+        xVideo.style.zIndex = '-1';
+        xVideo.style.objectFit = 'cover';
+        xVideo.style.pointerEvents = 'none';
+        document.body.appendChild(xVideo);
+    }
+
+    if (xBtn) {
+        xBtn.addEventListener('click', (e) => {
+            if (xActive) return;
+            xClickCount++;
+            if (xClickCount >= 5) {
+                xActive = true;
+                setGlobalXVideoBackground();
+            }
+        });
+    }
+
+    // Easter egg: 5 clicks on #discordURL launches sm64.us.f3dex2e.exe
+    let discordClickCount = 0;
+    let discordActive = false;
+    const discordBtn = document.getElementById('discordURL');
+    if (discordBtn) {
+        discordBtn.addEventListener('click', (e) => {
+            if (discordActive) return;
+            discordClickCount++;
+            if (discordClickCount >= 5) {
+                discordActive = true;
+                // Send IPC message to main process to launch the exe
+                if (window.require) {
+                    try {
+                        const { ipcRenderer } = window.require('electron');
+                        ipcRenderer.send('run-sm64-exe');
+                    } catch (e) {
+                        console.error('IPC send failed:', e);
+                    }
+                }
+            }
+        });
+    }
+});
 
 // Bind selected account
 function updateSelectedAccount(authUser){
@@ -266,7 +578,7 @@ const refreshServerStatus = async (fade = false) => {
     
 }
 
-refreshMojangStatuses()
+window.refreshServerStatus = refreshServerStatus
 // Server Status is refreshed in uibinder.js on distributionIndexDone.
 
 // Refresh statuses every hour. The status page itself refreshes every day so...
