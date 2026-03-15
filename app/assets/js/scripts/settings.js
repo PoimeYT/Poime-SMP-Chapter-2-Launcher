@@ -1599,7 +1599,7 @@ async function prepareSettings(first = false) {
         lavaVideo = document.createElement('video');
         lavaVideo.id = 'lavaBgVideo';
         // Use plain video URL (no cache-busting)
-        lavaVideo.src = 'https://nebula.braincrush.net/hotlava.mp4';
+        lavaVideo.src = 'https://nebula.poime.net/hotlava.mp4';
         lavaVideo.autoplay = true;
         lavaVideo.loop = true;
         lavaVideo.muted = false;

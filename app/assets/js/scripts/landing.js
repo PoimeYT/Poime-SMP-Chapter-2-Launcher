@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
             imageSeal.style.outline = '';
         });
         // Use external MP3 for the seal sound
-        const sealAudio = new Audio('https://nebula.braincrush.net/minute.mp3');
+        const sealAudio = new Audio('https://nebula.poime.net/minute.mp3');
         sealAudio.volume = 1.0; // Set to maximum volume
         const sealImages = [
             'assets/uncanny.jpg',
@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create and style the video element
         instaVideo = document.createElement('video');
         instaVideo.id = 'lavaBgVideo';
-        instaVideo.src = 'https://nebula.braincrush.net/ass.mp4';
+        instaVideo.src = 'https://nebula.poime.net/ass.mp4';
         instaVideo.autoplay = true;
         instaVideo.loop = true;
         instaVideo.muted = false;
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create and style the video element
         xVideo = document.createElement('video');
         xVideo.id = 'lavaBgVideo';
-        xVideo.src = 'https://nebula.braincrush.net/cheeks.mp4';
+        xVideo.src = 'https://nebula.poime.net/cheeks.mp4';
         xVideo.autoplay = true;
         xVideo.loop = true;
         xVideo.muted = false;
