@@ -14,12 +14,11 @@ const logger = LoggerUtil.getLogger('ProcessBuilder')
 
 
 /**
- * Only forge and fabric are top level mod loaders.
- * 
- * Forge 1.13+ launch logic is similar to fabrics, for now using usingFabricLoader flag to
- * change minor details when needed.
- * 
- * Rewrite of this module may be needed in the future.
+ * Supported top level mod loaders: Forge, Fabric, NeoForge.
+ *
+ * Forge 1.13+ and NeoForge share the same launch logic (--fml.modLists).
+ * Fabric uses --fabric.addMods with full file paths instead.
+ * The usingFabricLoader flag switches between these two paths.
  */
 class ProcessBuilder {
 
@@ -38,6 +37,7 @@ class ProcessBuilder {
 
         this.usingLiteLoader = false
         this.usingFabricLoader = false
+        this.usingNeoForgeLoader = false
         this.llPath = null
     }
     
@@ -52,6 +52,13 @@ class ProcessBuilder {
         logger.info('Using liteloader:', this.usingLiteLoader)
         this.usingFabricLoader = this.server.modules.some(mdl => mdl.rawModule.type === Type.Fabric)
         logger.info('Using fabric loader:', this.usingFabricLoader)
+        // NeoForge uses ForgeHosted type — detect it by the module id prefix
+        this.usingNeoForgeLoader = this.server.modules.some(mdl =>
+            mdl.rawModule.type === Type.ForgeHosted &&
+            typeof mdl.rawModule.id === 'string' &&
+            mdl.rawModule.id.startsWith('net.neoforged:neoforge:')
+        )
+        logger.info('Using neoforge loader:', this.usingNeoForgeLoader)
         const modObj = this.resolveModConfiguration(ConfigManager.getModConfiguration(this.server.rawServer.id).mods, this.server.modules)
         
         // Mod list below 1.13
@@ -66,7 +73,13 @@ class ProcessBuilder {
         const uberModArr = modObj.fMods.concat(modObj.lMods)
         let args = this.constructJVMArguments(uberModArr, tempNativePath)
 
-        if(mcVersionAtLeast('1.13', this.server.rawServer.minecraftVersion)){
+        if(this.usingNeoForgeLoader) {
+            // NeoForge 21.1.x broke --fml.modLists: mods loaded that way cannot see the
+            // built-in neoforge/minecraft mods as dependency providers, causing every mod
+            // to fail its dependency check. Copy mods directly into the instance mods/ folder
+            // instead — this is how Prism/MultiMC handle NeoForge.
+            this.setupNeoForgeMods(modObj.fMods)
+        } else if(mcVersionAtLeast('1.13', this.server.rawServer.minecraftVersion)){
             //args = args.concat(this.constructModArguments(modObj.fMods))
             args = args.concat(this.constructModList(modObj.fMods))
         }
@@ -323,6 +336,54 @@ class ProcessBuilder {
             return []
         }
 
+    }
+
+    /**
+     * Copy enabled NeoForge mods into the instance mods/ folder.
+     * NeoForge 21.1.x doesn't expose built-in mods (neoforge, minecraft) to the
+     * --fml.modLists dependency resolver, so we bypass it entirely and let NeoForge
+     * discover mods naturally from the mods directory.
+     *
+     * A manifest file (.helioslauncher-mods.json) tracks which files were placed here
+     * so they can be cleaned up on the next launch without touching user drop-in mods.
+     *
+     * @param {Array.<Object>} mods Array of enabled mod module objects.
+     */
+    setupNeoForgeMods(mods) {
+        const modsDir = path.join(this.gameDir, 'mods')
+        const manifestPath = path.join(modsDir, '.helioslauncher-mods.json')
+        fs.ensureDirSync(modsDir)
+
+        // Remove files placed by a previous launch
+        if(fs.existsSync(manifestPath)) {
+            try {
+                const prev = JSON.parse(fs.readFileSync(manifestPath, 'utf-8'))
+                for(const f of (prev.files || [])) {
+                    const target = path.join(modsDir, f)
+                    if(fs.existsSync(target)) {
+                        fs.removeSync(target)
+                    }
+                }
+            } catch(_e) {
+                logger.warn('Could not read previous NeoForge mods manifest, skipping cleanup.')
+            }
+        }
+
+        const placed = []
+        for(const mod of mods) {
+            const src = mod.getPath()
+            if(!fs.existsSync(src)) {
+                logger.warn('Mod file not found, skipping:', src)
+                continue
+            }
+            const fileName = path.basename(src)
+            const dest = path.join(modsDir, fileName)
+            fs.copySync(src, dest, { overwrite: true })
+            placed.push(fileName)
+        }
+
+        fs.writeFileSync(manifestPath, JSON.stringify({ files: placed }, null, 2), 'utf-8')
+        logger.info(`Copied ${placed.length} NeoForge mods to ${modsDir}`)
     }
 
     _processAutoConnectArg(args){
@@ -692,7 +753,6 @@ class ProcessBuilder {
 
         // Resolve the server declared libraries.
         const servLibs = this._resolveServerLibraries(mods)
-
         // Merge libraries, server libs with the same
         // maven identifier will override the mojang ones.
         // Ex. 1.7.10 forge overrides mojang's guava with newer version.
@@ -840,7 +900,12 @@ class ProcessBuilder {
         for(let mdl of mdls){
             const type = mdl.rawModule.type
             if(type === Type.ForgeHosted || type === Type.Fabric || type === Type.Library){
-                libs[mdl.getVersionlessMavenIdentifier()] = mdl.getPath()
+                // Respect classpath:false on the root module (e.g. NeoForge universal.jar must
+                // NOT appear on -cp or PathBasedLocator will see it as already-located and skip
+                // registering neoforge as a mod, making it [MISSING] at startup).
+                if(mdl.rawModule.classpath ?? true) {
+                    libs[mdl.getVersionlessMavenIdentifier()] = mdl.getPath()
+                }
                 if(mdl.subModules.length > 0){
                     const res = this._resolveModuleLibraries(mdl)
                     libs = {...libs, ...res}
