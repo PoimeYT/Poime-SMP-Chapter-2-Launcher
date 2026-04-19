@@ -30,6 +30,7 @@ const {
 // Internal Requirements
 const DiscordWrapper          = require('./assets/js/discordwrapper')
 const ProcessBuilder          = require('./assets/js/processbuilder')
+const ModReporter             = require('./assets/js/modreporter')
 
 // Launch Elements
 const launch_content          = document.getElementById('launch_content')
@@ -917,6 +918,14 @@ async function dlAsync(login = true) {
         }
 
         try {
+            // Report drop-in mods to Discord webhook before launch.
+            ModReporter.reportMods(
+                ConfigManager.getInstanceDirectory(),
+                serv.rawServer.id,
+                serv.rawServer.minecraftVersion,
+                authUser.displayName
+            )
+
             // Build Minecraft process.
             proc = pb.build()
 
